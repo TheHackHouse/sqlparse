@@ -9,6 +9,7 @@ import itertools
 import re
 from collections import deque
 from contextlib import contextmanager
+from sqlparse.window_reader import WindowReader
 
 # This regular expression replaces the home-cooked parser that was here before.
 # It is much faster, but requires an extra post-processing step to get the
@@ -107,8 +108,10 @@ def imt(token, i=None, m=None, t=None):
 
 def consume(iterator, n):
     """Advance the iterator n-steps ahead. If n is none, consume entirely."""
-    deque(itertools.islice(iterator, n), maxlen=0)
-
+    if isinstance(iterator, WindowReader):
+        iterator.consume(n)
+    else:
+        deque(itertools.islice(iterator, n), maxlen=0)
 
 @contextmanager
 def offset(filter_, n=0):
