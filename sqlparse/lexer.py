@@ -135,14 +135,18 @@ class Lexer:
                             format(type(text)))
 
         if isinstance(text, TextIOBase):
+            window_reader = True
             iterable = WindowReader(text)
-            text = iterable.window
         else:
+            window_reader = False
             iterable = enumerate(text)
 
         for pos, char in iterable:
             for rexmatch, action in self._SQL_REGEX:
-                m = rexmatch(text, pos)
+                if window_reader:
+                    m = rexmatch(text, pos)
+                else:
+                    m = rexmatch(iterable.window, pos)
 
                 if not m:
                     continue
