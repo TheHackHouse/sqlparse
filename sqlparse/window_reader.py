@@ -51,22 +51,17 @@ class WindowReader:
             self._cursor += n
             return
 
-        while True:
-            move_forward = self._cursor + n
+        move_forward = self._cursor + n
 
-            if self._eof or move_forward < self._buffer_size:
-                break
-
+        while not self._eof or move_forward >= self._buffer_size:
             next_chars = self._file_handle.read(self._buffer_size)
-            next_chars_len = len(next_chars)
 
-            if next_chars_len < self._buffer_size:
+            if len(next_chars) < self._buffer_size:
                 self._eof = True
 
-            if next_chars_len != 0:
+            if next_chars:
                 self.window = self.window[self._buffer_size :] + next_chars
-                self._cursor = 0
 
-            n -= self._buffer_size
+            move_forward -= self._buffer_size
 
-        self._cursor += move_forward
+        self._cursor = move_forward
