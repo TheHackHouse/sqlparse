@@ -130,12 +130,13 @@ class Lexer:
                     text = text.decode('utf-8')
                 except UnicodeDecodeError:
                     text = text.decode('unicode-escape')
-        else:
+        elif not isinstance(text, TextIOBase):
             raise TypeError("Expected text or file-like object, got {!r}".
                             format(type(text)))
 
         if isinstance(text, TextIOBase):
             iterable = WindowReader(text)
+            text = iterable.window
         else:
             iterable = enumerate(text)
 
