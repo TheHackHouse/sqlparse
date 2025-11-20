@@ -18,6 +18,7 @@ from io import TextIOBase
 
 from sqlparse import tokens, keywords
 from sqlparse.utils import consume
+from sqlparse.window_reader import WindowReader
 
 
 class Lexer:
@@ -117,8 +118,7 @@ class Lexer:
 
         ``stack`` is the initial stack (default: ``['root']``)
         """
-        if isinstance(text, TextIOBase):
-            text = text.read()
+
 
         if isinstance(text, str):
             pass
@@ -134,7 +134,11 @@ class Lexer:
             raise TypeError("Expected text or file-like object, got {!r}".
                             format(type(text)))
 
-        iterable = enumerate(text)
+        if isinstance(text, TextIOBase):
+            iterable = WindowReader(text)
+        else:
+            iterable = enumerate(text)
+
         for pos, char in iterable:
             for rexmatch, action in self._SQL_REGEX:
                 m = rexmatch(text, pos)
