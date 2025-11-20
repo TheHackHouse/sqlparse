@@ -144,9 +144,9 @@ class Lexer:
         for pos, char in iterable:
             for rexmatch, action in self._SQL_REGEX:
                 if window_reader:
-                    m = rexmatch(text, pos)
-                else:
                     m = rexmatch(iterable.window, pos)
+                else:
+                    m = rexmatch(text, pos)
 
                 if not m:
                     continue
