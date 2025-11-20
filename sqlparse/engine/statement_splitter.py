@@ -24,6 +24,30 @@ class StatementSplitter:
         self.consume_ws = False
         self.tokens = []
         self.level = 0
+        self._skip_insert_into = False
+        self._seen_insert = False
+
+    def _maybe_skip_insert_into(self, ttype, value):
+        """Flag INSERT ... INTO statements so we don't accumulate their tokens."""
+        if self._skip_insert_into:
+            return
+
+        # Only pay attention to non-whitespace/comment tokens
+        if ttype in T.Comment or ttype in T.Whitespace or ttype is T.Newline:
+            return
+
+        if not self._seen_insert and ttype is T.DML and value.upper() == "INSERT":
+            self._seen_insert = True
+            return
+
+        # Second significant token after INSERT must be INTO to trigger skip
+        if self._seen_insert:
+            if ttype is T.Keyword and value.upper() == "INTO":
+                self._skip_insert_into = True
+                self.tokens.clear()
+            else:
+                # False alarm, reset the state
+                self._seen_insert = False
 
     def _change_splitlevel(self, ttype, value):
         """Get the new split level (increase, decrease or remain equal)"""
@@ -90,34 +114,21 @@ class StatementSplitter:
             # whitespace ignores newlines.
             # why don't multi line comments also count?
             if self.consume_ws and ttype not in EOS_TTYPE:
-                found_insert = False
-                found_into = False
-
-                for token in self.tokens:
-                    if token.ttype is T.Comment.Single or token.is_whitespace or token.is_newline:
-                        continue
-
-                    if not found_insert and not found_into and token.match(T.DML, "INSERT"):
-                        found_insert = True
-                        continue
-                    
-                    if found_insert and not found_into and token.match(T.Keyword, "INTO"):
-                        found_into = True
-                        continue
-
-                    break
-
-                if not (found_insert and found_into):
+                if not self._skip_insert_into:
                     yield sql.Statement(self.tokens)
 
                 # Reset filter and prepare to process next statement
                 self._reset()
 
+            # Identify INSERT ... INTO early so we can drop tokens immediately
+            self._maybe_skip_insert_into(ttype, value)
+
             # Change current split level (increase, decrease or remain equal)
             self.level += self._change_splitlevel(ttype, value)
 
             # Append the token to the current statement
-            self.tokens.append(sql.Token(ttype, value))
+            if not self._skip_insert_into:
+                self.tokens.append(sql.Token(ttype, value))
 
             # Check if we get the end of a statement
             # Issue762: Allow GO (or "GO 2") as statement splitter.
