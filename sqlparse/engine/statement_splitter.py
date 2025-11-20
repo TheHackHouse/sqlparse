@@ -90,7 +90,25 @@ class StatementSplitter:
             # whitespace ignores newlines.
             # why don't multi line comments also count?
             if self.consume_ws and ttype not in EOS_TTYPE:
-                yield sql.Statement(self.tokens)
+                found_insert = False
+                found_into = False
+
+                for token in self.tokens:
+                    if token.ttype is T.Comment.Single or token.is_whitespace or token.is_newline:
+                        continue
+
+                    if not found_insert and not found_into and token.match(T.DML, "INSERT"):
+                        found_insert = True
+                        continue
+                    
+                    if found_insert and not found_into and token.match(T.Keyword, "INTO"):
+                        found_into = True
+                        continue
+
+                    break
+
+                if not (found_insert and found_into):
+                    yield sql.Statement(self.tokens)
 
                 # Reset filter and prepare to process next statement
                 self._reset()
